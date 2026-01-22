@@ -23,6 +23,11 @@ export default function ProblemFormModal({ onSaveSuccess }) {
             return;
         }
 
+        if (!team) {
+            setError("Takım ismi giriniz");
+            return;
+        }
+
         try {
             const res = await api.createProblem({ title, team });
 

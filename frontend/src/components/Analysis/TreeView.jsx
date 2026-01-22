@@ -24,13 +24,20 @@ export default function TreeView({ selectedProblem, onBack, setSelectedProblem }
         }
     };
 
-    const loadTree = async () => {
+    const loadTree = async (newParentId = null) => {
         if (!selectedProblem) return;
         try {
             const res = await api.fetchTree(selectedProblem.problem_id);
-            // api.js result.data döndüğü için res doğrudan {tree: [], model: {}} içermeli
             setTreeData(res?.tree || []);
             setTreeModel(res?.model || {});
+
+            if (newParentId) {
+                setExpandedNodes(prev => {
+                    const next = new Set(prev);
+                    next.add(newParentId);
+                    return next;
+                });
+            }
         } catch (err) {
             console.error("Load tree failed:", err);
         }
@@ -107,8 +114,13 @@ export default function TreeView({ selectedProblem, onBack, setSelectedProblem }
                     {treeData.map(node => renderNode(node))}
                 </div>
                 <div style={{ width: '400px' }}>
-                    <ControlSidebar selectedProblem={selectedProblem} selectedNodeId={selectedNodeId} treeModel={treeModel} onRefreshTree={loadTree}
-                                    onUpdateProblem={(s) => setSelectedProblem({ ...selectedProblem, state: s })} />
+                    <ControlSidebar
+                        selectedProblem={selectedProblem}
+                        selectedNodeId={selectedNodeId}
+                        treeModel={treeModel}
+                        onRefreshTree={() => loadTree(selectedNodeId)}
+                        onUpdateProblem={(s) => setSelectedProblem({ ...selectedProblem, state: s })}
+                    />
                 </div>
             </div>
         </div>
