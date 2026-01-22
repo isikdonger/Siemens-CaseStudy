@@ -1,42 +1,32 @@
 const BASE_URL = 'http://localhost/Siemens-CaseStudy/backend/public';
 
 export const api = {
-    fetchProblems: async () => {
-        const res = await fetch(`${BASE_URL}/problems`);
+    _get: async (endpoint) => {
+        const res = await fetch(`${BASE_URL}${endpoint}`);
         const result = await res.json();
         return result.data || result;
     },
 
-    fetchTree: async (problemId) => {
-        const res = await fetch(`${BASE_URL}/tree?problem_id=${problemId}`);
-        const result = await res.json();
-        return result.data || result;
-    },
-
-    addCause: async (payload) => {
-        const res = await fetch(`${BASE_URL}/causes`, {
+    _post: async (endpoint, payload) => {
+        const res = await fetch(`${BASE_URL}${endpoint}`, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         const result = await res.json();
         return result.data || result;
     },
 
-    markRootCause: async (payload) => {
-        const res = await fetch(`${BASE_URL}/root-cause`, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        return result.data || result;
-    },
+    fetchProblems: () => api._get('/problems'),
 
-    updateProblemState: async (problemId, state) => {
-        const res = await fetch(`${BASE_URL}/problems`, {
-            method: 'POST',
-            body: JSON.stringify({ problem_id: problemId, state })
-        });
-        const result = await res.json();
-        return result.data || result;
-    }
+    fetchTree: (problemId) => api._get(`/tree?problem_id=${problemId}`),
+
+    createProblem: (payload) => api._post('/problems', payload),
+
+    updateProblemState: (problemId, state) =>
+        api._post('/problems', { problem_id: problemId, state }),
+
+    addCause: (payload) => api._post('/causes', payload),
+
+    markRootCause: (payload) => api._post('/root-cause', payload),
 };

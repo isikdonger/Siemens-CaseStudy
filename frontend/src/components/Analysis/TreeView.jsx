@@ -9,21 +9,34 @@ export default function TreeView({ selectedProblem, onBack, setSelectedProblem }
     const [treeModel, setTreeModel] = useState({});
     const [expandedNodes, setExpandedNodes] = useState(new Set(['root']));
 
+    const handleReopen = async () => {
+        try {
+            const res = await api.updateProblemState(selectedProblem.problem_id, 1);
+
+            // Backend başarılı olduğunda genellikle güncellenen objeyi veya {problem_id: ...} döner
+            if (res) {
+                setSelectedProblem({ ...selectedProblem, state: 1 });
+                // Vaka açıldığında ağacı yenilemek, root cause işaretlerini temizlemek için önemlidir
+                await loadTree();
+            }
+        } catch (err) {
+            console.error("Reopen failed:", err);
+        }
+    };
+
     const loadTree = async () => {
         if (!selectedProblem) return;
-        const data = await api.fetchTree(selectedProblem.problem_id);
-        setTreeData(data.tree || []);
-        setTreeModel(data.model || {});
+        try {
+            const res = await api.fetchTree(selectedProblem.problem_id);
+            // api.js result.data döndüğü için res doğrudan {tree: [], model: {}} içermeli
+            setTreeData(res?.tree || []);
+            setTreeModel(res?.model || {});
+        } catch (err) {
+            console.error("Load tree failed:", err);
+        }
     };
 
     useEffect(() => { loadTree(); }, [selectedProblem]);
-
-    const handleReopen = async () => {
-        const res = await api.updateProblemState(selectedProblem.problem_id, 1);
-        if (res.status === 'success') {
-            setSelectedProblem({ ...selectedProblem, state: 1 });
-        }
-    };
 
     const renderNode = (node, level = 0) => {
         const isSelected = selectedNodeId === node.id;

@@ -37,7 +37,7 @@ try {
         case 'problems':
             $controller = new ProblemController();
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $controller->updateState();
+                $controller->handlePost();
             } else {
                 $controller->index();
             }

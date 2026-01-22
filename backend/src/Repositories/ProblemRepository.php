@@ -19,14 +19,18 @@ class ProblemRepository {
         return $stmt->fetch();
     }
 
+    public function add($title, $team) {
+        $stmt = $this->db->prepare("INSERT INTO problems (title, team, state, date) VALUES (?, ?, 1, NOW())");
+        $stmt->execute([$title, $team]);
+        return $this->db->lastInsertId();
+    }
+
     public function updateState($id, $state) {
         $this->db->beginTransaction();
         try {
-            // Durumu güncelle
             $stmt = $this->db->prepare("UPDATE problems SET state = ? WHERE problem_id = ?");
             $stmt->execute([$state, $id]);
 
-            // Eğer vaka yeniden açılıyorsa (1), o probleme ait kök nedenleri temizle
             if ($state == 1) {
                 $stmtClear = $this->db->prepare("UPDATE causes SET is_root_cause = 0, action_description = NULL WHERE problem_id = ?");
                 $stmtClear->execute([$id]);
