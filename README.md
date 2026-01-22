@@ -1,259 +1,197 @@
 # Siemens Root Cause Analysis (RCA) Tool
 
-A web application for managing problems and performing root cause analysis using a hierarchical tree structure. Built with React (frontend) and PHP (backend), following Siemens iX design system guidelines.
+A professional web application for managing problems and performing root cause analysis using a hierarchical tree structure. Built with **React 18** and **Modern PHP (OOP)**, following the Siemens iX design system guidelines.
 
 ## Project Overview
 
-This application implements a 5-Why analysis tool that allows users to:
-- Create and manage problems
-- Build hierarchical cause trees using recursive parent-child relationships
-- Visualize cause-and-effect relationships
-- Mark root causes and close problems
+This tool implements a 5-Why analysis methodology, enabling users to:
+- Create and manage industrial problems.
+- Build hierarchical cause trees with unlimited depth using recursive parent-child relationships.
+- Navigate through a modernized RESTful API architecture.
+- Identify root causes and define corrective actions for finalized investigations.
 
-## Technical Architecture
+---
+
+## Technical Architecture (Modernized)
+
+The project has been refactored from simple scripts to a **Modern Layered Architecture** to ensure scalability, security, and maintainability.
+
+### Backend (PHP 8.3+)
+- **Pattern**: Controller-Repository Pattern (Separation of Concerns).
+- **Routing**: Centralized RESTful Router in `index.php` with `.htaccess` URL rewriting for clean endpoints.
+- **Autoloading**: PSR-4 style custom Autoloader (`App\Core\Autoloader`) for automatic class loading.
+- **Database**: Singleton Database connection class using PDO with prepared statements for SQL injection prevention.
+- **Security**: Centralized Validation Service for input validation and data sanitization.
+- **API Response**: Standardized JSON response format with status, data, message, and timestamp via `Response` utility class.
+- **CORS**: Configured for cross-origin requests from frontend development server.
 
 ### Frontend
-- **Framework**: React 18 with Vite
-- **UI Library**: Siemens iX React Components (@siemens/ix-react)
-- **Data Grid**: AG Grid Community
-- **Build Tool**: Vite
+- **Framework**: React 18 with Vite build tool.
+- **UI Library**: Siemens iX React Components (@siemens/ix-react) following Siemens design system.
+- **Data Grid**: AG Grid React with custom Siemens Quartz theme and state persistence (sorting/pagination).
+- **Tree Visualization**: @xyflow/react for interactive hierarchical tree display of cause analysis.
+- **State Management**: React hooks with localStorage for view state and selected problem persistence.
 
-### Backend
-- **Language**: PHP (Native)
-- **Database**: MySQL/MariaDB
-- **API Style**: RESTful JSON API
+---
 
-### Database Structure
+## Directory Structure
 
-The application uses a **recursive tree structure** implemented with `parent_id` foreign key relationships:
+```text
+├── backend/
+│   ├── public/             # API Entry point (index.php, .htaccess)
+│   │   └── index.php       # Centralized router handling all API endpoints
+│   ├── src/
+│   │   ├── Controllers/    # Request/Response handlers
+│   │   │   ├── ProblemController.php  # Problem CRUD operations
+│   │   │   └── CauseController.php    # Cause tree operations
+│   │   ├── Repositories/   # Data Access Layer (PDO queries)
+│   │   │   ├── ProblemRepository.php
+│   │   │   └── CauseRepository.php
+│   │   ├── Services/       # Business logic layer
+│   │   │   └── ValidationService.php  # Input validation
+│   │   ├── Core/           # Core system components
+│   │   │   ├── Database.php           # Singleton PDO connection
+│   │   │   └── Autoloader.php         # PSR-4 autoloader
+│   │   └── Utils/          # Utility classes
+│   │       └── Response.php           # Standardized JSON responses
+│   └── config.php          # Database configuration (credentials)
+├── frontend/
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   │   ├── Analysis/   # Tree view and cause analysis components
+│   │   │   │   ├── TreeView.jsx
+│   │   │   │   ├── ControlSidebar.jsx
+│   │   │   │   └── CauseListItem.jsx
+│   │   │   ├── Dashboard/ # Problem grid and dashboard
+│   │   │   │   └── ProblemGrid.jsx
+│   │   │   └── Common/     # Shared components
+│   │   │       ├── Header.jsx
+│   │   │       ├── Footer.jsx
+│   │   │       └── ProblemFormModal.jsx
+│   │   ├── services/       # API integration layer
+│   │   │   └── api.js      # Centralized API service functions
+│   │   └── App.jsx         # Root component with view routing
+│   └── package.json        # Frontend dependencies
+└── README.md
+```
 
-#### Problems Table
+## Architecture Flow
+
+### Request Flow (Backend)
+1. **Entry Point**: HTTP request arrives at `backend/public/index.php`
+2. **Routing**: Router parses the URL and maps to appropriate Controller method
+3. **Controller**: Handles request, validates input (via ValidationService), calls Repository
+4. **Repository**: Executes PDO queries against Database singleton
+5. **Response**: Controller formats response using Response utility and returns JSON
+
+### Component Flow (Frontend)
+1. **App.jsx**: Root component manages view state (list/details) and selected problem
+2. **API Service**: `services/api.js` provides centralized functions for all backend communication
+3. **Components**: 
+   - `ProblemGrid`: Displays problems in AG Grid, handles state updates
+   - `TreeView`: Renders hierarchical cause tree using @xyflow/react
+   - `ControlSidebar`: Provides controls for adding causes and marking root causes
+4. **State Persistence**: localStorage maintains view state and selected problem across sessions
+
+## Database Structure
+
+The application uses a recursive tree structure implemented with `parent_id` relationships:
+
+**Problems Table**: Stores the main incidents
 ```sql
 CREATE TABLE problems (
     problem_id INT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(255) NOT NULL,
     team VARCHAR(100),
-    state TINYINT DEFAULT 1,  -- 1: Active, 2: Closed
-    date DATETIME DEFAULT CURRENT_TIMESTAMP
+    state TINYINT DEFAULT 1, -- 1: Open, 2: Closed
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-#### Causes Table
+**Causes Table**: Recursive structure for 5-Why analysis
 ```sql
 CREATE TABLE causes (
     cause_id INT PRIMARY KEY AUTO_INCREMENT,
     problem_id INT NOT NULL,
-    parent_id INT NULL,  -- NULL for root level, cause_id for children
+    parent_id INT NULL,
     description TEXT NOT NULL,
     is_root_cause TINYINT DEFAULT 0,
     action_description TEXT,
-    FOREIGN KEY (problem_id) REFERENCES problems(problem_id),
-    FOREIGN KEY (parent_id) REFERENCES causes(cause_id)
+    FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES causes(cause_id) ON DELETE CASCADE
 );
 ```
 
-**Key Design Decision**: The `parent_id` field allows for unlimited depth in the cause hierarchy:
-- `parent_id = NULL`: Cause is at the root level (directly under the problem)
-- `parent_id = cause_id`: Cause is a child of another cause
-- This creates a recursive tree structure stored efficiently in a relational database
-
-## Prerequisites
-
-- **PHP**: 7.4 or higher
-- **MySQL/MariaDB**: 5.7 or higher
-- **Node.js**: 16.x or higher
-- **npm** or **yarn**
-- **Web Server**: Apache (WAMP/XAMPP) or Nginx with PHP-FPM
-
 ## Installation & Setup
 
-### 1. Database Setup
+### 1. Backend Setup (WAMP/XAMPP)
 
-1. Create a MySQL database:
-```sql
-CREATE DATABASE case_study_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
+1. **Database Configuration**
+   - Create a MySQL database (e.g., `case_study_db`)
+   - Update `backend/config.php` with your local database credentials:
+     ```php
+     return [
+         'host' => 'localhost',
+         'db'   => 'case_study_db',
+         'user' => 'root',
+         'pass' => '',
+         'charset' => 'utf8mb4'
+     ];
+     ```
 
-2. Create the tables (run the SQL commands from the database structure section above)
+2. **Database Schema**
+   - Execute the SQL queries from `queries/Query.sql` to create the `problems` and `causes` tables.
 
-3. Update database credentials in `backend/config.php`:
-```php
-$host = 'localhost';
-$db   = 'case_study_db';
-$user = 'your_username';
-$pass = 'your_password';
-```
+3. **Apache Configuration**
+   - Ensure `rewrite_module` and `headers_module` are enabled in your WAMP/XAMPP Apache settings.
+   - The `.htaccess` file in `backend/public/` handles URL rewriting for clean REST endpoints.
 
-### 2. Backend Setup
+4. **Verification**
+   - Open `http://localhost/Siemens-CaseStudy/backend/public/problems` in your browser.
+   - You should see a JSON response with status, data, and timestamp.
 
-1. Place the project in your web server directory:
-   - **WAMP**: `C:\wamp64\www\Siemens CaseStudy\`
-   - **XAMPP**: `C:\xampp\htdocs\Siemens CaseStudy\`
-   - **Linux/Apache**: `/var/www/html/Siemens CaseStudy/`
+### 2. Frontend Setup
 
-2. Ensure PHP has PDO MySQL extension enabled:
-```bash
-php -m | grep pdo_mysql
-```
-
-3. Verify backend API is accessible:
-   - Open: `http://localhost/Siemens-CaseStudy/backend/get_problems.php`
-   - Should return: `[]` (empty array) or JSON data
-
-### 3. Frontend Setup
-
-1. Navigate to the frontend directory:
-```bash
-cd frontend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Configure API base URL (optional):
-   - Create `.env` file in `frontend/` directory:
+1. **Navigate to frontend directory**
+   ```bash
+   cd frontend
    ```
-   VITE_API_BASE_URL=http://localhost/Siemens-CaseStudy/backend
+
+2. **Install dependencies**
+   ```bash
+   npm install
    ```
-   - Or modify `API_BASE_URL` in `frontend/src/App.jsx`
 
-4. Start the development server:
-```bash
-npm run dev
+3. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+4. **Access the application**
+   - Open `http://localhost:5173` in your browser.
+   - The frontend will communicate with the backend API at `http://localhost/Siemens-CaseStudy/backend/public`.
+
+## API Endpoints (RESTful)
+
+All endpoints return JSON responses with the following structure:
+```json
+{
+  "status": "success|error",
+  "data": {...},
+  "message": "Optional message",
+  "timestamp": "YYYY-MM-DD HH:MM:SS"
+}
 ```
 
-5. The application will be available at: `http://localhost:5173`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/problems` | Fetch all problems from the dashboard |
+| `POST` | `/problems` | Update problem state (Re-open or Close). Body: `{problem_id, state}` |
+| `GET` | `/tree?problem_id={id}` | Fetch recursive cause tree and model for a specific problem |
+| `POST` | `/causes` | Add a new "Why" analysis step. Body: `{problem_id, parent_id, description}` |
+| `POST` | `/root-cause` | Mark a node as root cause and define corrective action. Body: `{problem_id, cause_id, action_description}` |
 
-### 4. Production Build
-
-To build for production:
-
-```bash
-cd frontend
-npm run build
-```
-
-The built files will be in `frontend/dist/`. Configure your web server to serve these static files.
-
-## Project Structure
-
-```
-Siemens CaseStudy/
-├── backend/
-│   ├── config.php              # Database configuration and CORS setup
-│   ├── get_problems.php        # GET: List all problems
-│   ├── get_problems_detail.php # GET: Get problem details
-│   ├── create_problem.php      # POST: Create new problem
-│   ├── get_cause_tree.php      # GET: Get cause tree for a problem
-│   ├── add_cause.php           # POST: Add new cause to hierarchy
-│   └── mark_root_cause.php     # POST: Mark root cause and close problem
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx             # Main application component
-│   │   └── main.jsx            # Application entry point
-│   ├── package.json
-│   └── vite.config.js
-├── queries/
-│   └── Query.sql               # Database schema (if provided)
-└── README.md
-```
-
-## API Endpoints
-
-### Problems
-
-- **GET** `/backend/get_problems.php`
-  - Returns: Array of all problems
-  
-- **GET** `/backend/get_problems_detail.php?id={problem_id}`
-  - Returns: Single problem details
-
-- **POST** `/backend/create_problem.php`
-  - Body: `{ "title": "string", "team": "string", "state": 1 }`
-  - Returns: `{ "status": "success", "problem_id": int }`
-
-### Causes
-
-- **GET** `/backend/get_cause_tree.php?problem_id={id}`
-  - Returns: Tree model object with hierarchical structure
-
-- **POST** `/backend/add_cause.php`
-  - Body: `{ "problem_id": int, "parent_id": int|null, "description": "string" }`
-  - Returns: `{ "status": "success", "cause_id": int }`
-
-- **POST** `/backend/mark_root_cause.php`
-  - Body: `{ "problem_id": int, "cause_id": int, "action": "string" }`
-  - Returns: `{ "status": "success" }`
-
-## Key Features
-
-### Tree Structure Implementation
-
-The application implements a recursive tree structure using `parent_id` relationships:
-
-1. **Root Level**: Causes with `parent_id = NULL` are displayed directly under the problem
-2. **Child Nodes**: Causes with `parent_id = cause_id` are nested under their parent
-3. **Unlimited Depth**: The structure supports unlimited nesting levels
-4. **Efficient Storage**: Uses relational database with foreign key constraints
-
-### Siemens iX Design System
-
-The UI follows Siemens iX design guidelines:
-- Uses `theme-brand-dark` theme
-- Implements iX components (IxButton, IxTree, IxModal, etc.)
-- Follows iX color tokens (CSS variables)
-- Responsive layout with proper spacing
-
-## Development Guidelines
-
-### PHP Backend
-- All endpoints return JSON
-- Proper error handling with HTTP status codes
-- Prepared statements for SQL injection prevention
-- CORS headers configured in `config.php`
-- Consistent error response format
-
-### React Frontend
-- Functional components with hooks
-- Proper state management
-- Error handling for API calls
-- Loading states for async operations
-- Clean component structure
-
-## Troubleshooting
-
-### CORS Issues
-- Ensure `config.php` has correct CORS headers
-- Check that frontend URL matches in CORS configuration
-
-### Database Connection
-- Verify database credentials in `backend/config.php`
-- Check MySQL service is running
-- Ensure database exists and tables are created
-
-### API Not Responding
-- Check PHP error logs
-- Verify file permissions
-- Test endpoints directly in browser/Postman
-
-### Frontend Build Issues
-- Clear `node_modules` and reinstall: `rm -rf node_modules && npm install`
-- Check Node.js version compatibility
-- Verify all dependencies in `package.json`
-
-## Browser Support
-
-- Chrome (latest)
-- Firefox (latest)
-- Edge (latest)
-- Safari (latest)
-
-## License
-
-This project is developed as a case study for Siemens.
-
-## Contact & Support
-
-For issues or questions, please refer to the project documentation or contact the development team.
+### Response Format
+- **Success (200)**: `{status: "success", data: {...}, timestamp: "..."}`
+- **Error (400/404/500)**: `{status: "error", data: {error: "..."}, timestamp: "..."}`
+- **Validation Error (422)**: `{status: "error", data: {validation_errors: {...}}, message: "...", timestamp: "..."}`

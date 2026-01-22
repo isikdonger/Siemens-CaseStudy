@@ -1,39 +1,42 @@
-const BASE_URL = 'http://localhost/Siemens-CaseStudy/backend';
+const BASE_URL = 'http://localhost/Siemens-CaseStudy/backend/public';
 
 export const api = {
-    fetchProblems: () => fetch(`${BASE_URL}/get_problems.php`).then(res => res.json()),
-
-    fetchTree: (id) => fetch(`${BASE_URL}/get_cause_tree.php?problem_id=${id}`).then(res => res.json()),
-
-    addCause: (payload) => fetch(`${BASE_URL}/add_cause.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    }).then(res => res.json()),
-
-    markRootCause: (payload) => fetch(`${BASE_URL}/mark_root_cause.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    }).then(res => res.json()),
-
-    reopenProblem: (problem_id) => fetch(`${BASE_URL}/reopen_problem.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ problem_id })
-    }).then(res => res.json()),
-
-    createProblem: (payload) => fetch(`${BASE_URL}/create_problem.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    }).then(res => res.json()),
-
-    updateProblemState: async (problem_id, state) => {
-        const res = await fetch(`${BASE_URL}/update_problem_state.php`, {
-            method: 'POST',
-            body: JSON.stringify({ problem_id, state })
-        });
-        return res.json();
+    fetchProblems: async () => {
+        const res = await fetch(`${BASE_URL}/problems`);
+        const result = await res.json();
+        return result.data || result;
     },
+
+    fetchTree: async (problemId) => {
+        const res = await fetch(`${BASE_URL}/tree?problem_id=${problemId}`);
+        const result = await res.json();
+        return result.data || result;
+    },
+
+    addCause: async (payload) => {
+        const res = await fetch(`${BASE_URL}/causes`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        return result.data || result;
+    },
+
+    markRootCause: async (payload) => {
+        const res = await fetch(`${BASE_URL}/root-cause`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        return result.data || result;
+    },
+
+    updateProblemState: async (problemId, state) => {
+        const res = await fetch(`${BASE_URL}/problems`, {
+            method: 'POST',
+            body: JSON.stringify({ problem_id: problemId, state })
+        });
+        const result = await res.json();
+        return result.data || result;
+    }
 };
