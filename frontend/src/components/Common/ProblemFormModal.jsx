@@ -8,13 +8,12 @@ export default function ProblemFormModal({ onSaveSuccess }) {
     const [team, setTeam] = useState('');
 
     const handleSave = async () => {
-        if (!title || !team) return;
-        const result = await api.createProblem({ title, team, state: 1 });
-        if (result.status === "success") {
-            onSaveSuccess();
-            modalRef.current?.close();
+        const res = await api.createProblem(formData);
+        if(res.status === 'success') {
+            onSaveSuccess(); // This calls refreshList in ProblemGrid
+            closeModal();
         }
-    };
+    }
 
     return (
         <Modal ref={modalRef}>

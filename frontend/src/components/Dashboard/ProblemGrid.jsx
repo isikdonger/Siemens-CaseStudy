@@ -1,16 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { IxButton, IxContentHeader, showModal } from '@siemens/ix-react';
-
-// AG Grid Core
 import { themeQuartz } from 'ag-grid-community';
 import ProblemFormModal from '../Common/ProblemFormModal';
 
 export default function ProblemGrid({ rowData, onAnalyze, refreshList }) {
+    const gridRef = useRef();
 
-    // Siemens Industrial Experience Palette
-    const siemensTheme = useMemo(() => {
-        return themeQuartz.withParams({
+    const siemensTheme = useMemo(() => (
+        themeQuartz.withParams({
             backgroundColor: "#000000",
             foregroundColor: "#ebebeb",
             headerBackgroundColor: "#1a1a1a",
@@ -19,37 +17,70 @@ export default function ProblemGrid({ rowData, onAnalyze, refreshList }) {
             rowHoverColor: "rgba(0, 204, 187, 0.1)",
             selectedRowBackgroundColor: "rgba(0, 204, 187, 0.2)",
             borderRadius: "4px",
-        });
+        })
+    ), []);
+
+    // Updated to save both Column State and Pagination
+    const saveState = useCallback(() => {
+        if (gridRef.current?.api) {
+            const columnState = gridRef.current.api.getColumnState();
+            const currentPage = gridRef.current.api.paginationGetCurrentPage();
+
+            const fullState = {
+                columns: columnState,
+                page: currentPage
+            };
+
+            localStorage.setItem('problem_grid_full_state', JSON.stringify(fullState));
+        }
+    }, []);
+
+    const restoreState = useCallback((params) => {
+        const savedRaw = localStorage.getItem('problem_grid_full_state');
+        if (savedRaw) {
+            const savedState = JSON.parse(savedRaw);
+
+            // Timeout ensures AG Grid has fully rendered the data before we move the page
+            setTimeout(() => {
+                // 1. Restore Columns/Sorting
+                if (savedState.columns) {
+                    params.api.applyColumnState({
+                        state: savedState.columns,
+                        applyOrder: true,
+                    });
+                }
+
+                // 2. Restore Page Number
+                if (typeof savedState.page === 'number') {
+                    params.api.paginationGoToPage(savedState.page);
+                }
+            }, 100);
+        }
     }, []);
 
     const columnDefs = useMemo(() => [
-        {
-            field: 'problem_id',
-            headerName: 'ID',
-            width: 80,
-            sort: 'desc', // Consistency: Enforces descending order on load
-            sortIndex: 0
-        },
-        { field: 'title', headerName: 'Problem Name', flex: 1, sortable: true },
-        { field: 'team', headerName: 'Team', width: 150, sortable: true },
+        { field: 'problem_id', headerName: 'ID', width: 90 },
+        { field: 'title', headerName: 'Problem Name', flex: 1, sortable: true, filter: true },
+        { field: 'team', headerName: 'Team', width: 150, sortable: true, filter: true },
         {
             field: 'date',
             headerName: 'Reported Date',
             width: 150,
-            valueFormatter: (params) => {
-                if (!params.value) return '';
-                const date = new Date(params.value);
-                return date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                });
-            }
+            sortable: true,
+            valueFormatter: (p) =>
+                p.value
+                    ? new Date(p.value).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    })
+                    : ''
         },
         {
             field: 'state',
             headerName: 'Status',
-            width: 110,
+            width: 120,
+            sortable: true,
             cellRenderer: (p) => (
                 <span style={{ color: p.value === 1 ? '#00ccbb' : '#ff4444', fontWeight: 'bold' }}>
                     {p.value === 1 ? '● Open' : '● Closed'}
@@ -63,7 +94,7 @@ export default function ProblemGrid({ rowData, onAnalyze, refreshList }) {
             filter: false,
             cellRenderer: (p) => (
                 <IxButton ghost onClick={() => onAnalyze(p.data)}>
-                    Analyze
+                    OPEN CASE
                 </IxButton>
             )
         }
@@ -78,18 +109,23 @@ export default function ProblemGrid({ rowData, onAnalyze, refreshList }) {
             </IxContentHeader>
             <div style={{ flex: 1, padding: '20px' }}>
                 <AgGridReact
+                    ref={gridRef}
                     theme={siemensTheme}
                     rowData={rowData || []}
                     columnDefs={columnDefs}
-
-                    // Pagination Settings (Fixed to avoid console warnings)
                     pagination={true}
                     paginationPageSize={10}
                     paginationPageSizeSelector={[10, 20, 50, 100]}
-
-                    // Layout settings
                     domLayout='autoHeight'
-                    onGridReady={(params) => params.api.sizeColumnsToFit()}
+
+                    onGridReady={restoreState}
+
+                    // Triggers save on Sort, Move, Resize, AND Page Change
+                    onSortChanged={saveState}
+                    onColumnMoved={saveState}
+                    onColumnResized={saveState}
+                    onPaginationChanged={saveState}
+
                     overlayNoRowsTemplate="<span>No problems found.</span>"
                 />
             </div>

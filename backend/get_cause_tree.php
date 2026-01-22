@@ -1,15 +1,15 @@
 <?php
 /**
  * API endpoint to retrieve the cause tree structure for a problem
- * Returns hierarchical tree model using parent_id relationships
- * 
- * Tree Structure:
- * - Root node represents the problem itself
- * - Each cause has a parent_id (NULL for root level, cause_id for children)
- * - This creates a recursive tree structure stored in the database
+ * Returns:
+ *  - model: flat adjacency map (for logic & sidebar)
+ *  - tree: nested structure (for visual rendering)
  */
+
 require_once 'config.php';
 global $pdo;
+
+header('Content-Type: application/json');
 
 $problem_id = $_GET['problem_id'] ?? null;
 
@@ -20,7 +20,7 @@ if (!$problem_id) {
 }
 
 try {
-    // Get the problem title
+    // 1. Get problem
     $stmtProb = $pdo->prepare("SELECT title FROM problems WHERE problem_id = ?");
     $stmtProb->execute([$problem_id]);
     $problem = $stmtProb->fetch(PDO::FETCH_ASSOC);
@@ -31,40 +31,47 @@ try {
         exit;
     }
 
-    // Get all causes for this problem
-    $stmt = $pdo->prepare("SELECT * FROM causes WHERE problem_id = ? ORDER BY cause_id");
+    // 2. Get causes
+    $stmt = $pdo->prepare("
+        SELECT cause_id, description, parent_id, is_root_cause
+        FROM causes
+        WHERE problem_id = ?
+        ORDER BY cause_id
+    ");
     $stmt->execute([$problem_id]);
     $causes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Initialize tree model - root node represents the problem
+    // 3. Initialize model
     $model = [];
+
     $model['root'] = [
         'id' => 'root',
-        'data' => ['name' => $problem['title']],
-        'hasChildren' => false,
-        'children' => []
+        'data' => [
+            'name' => $problem['title']
+        ],
+        'children' => [],
+        'hasChildren' => false
     ];
 
-    // Add each cause as a node in the model
     foreach ($causes as $cause) {
         $id = (string)$cause['cause_id'];
         $model[$id] = [
             'id' => $id,
             'data' => [
                 'name' => $cause['description'],
-                'is_root_cause' => (int)$cause['is_root_cause'] // ADD THIS LINE
+                'is_root_cause' => (int)$cause['is_root_cause']
             ],
-            'hasChildren' => false,
-            'children' => []
+            'children' => [],
+            'hasChildren' => false
         ];
     }
 
-    // Build the hierarchy using parent_id relationships
-    // If parent_id is NULL, the cause belongs to root level
-    // Otherwise, it's a child of the cause with that parent_id
+    // 4. Link parents
     foreach ($causes as $cause) {
         $id = (string)$cause['cause_id'];
-        $parentId = ($cause['parent_id']) ? (string)$cause['parent_id'] : 'root';
+        $parentId = $cause['parent_id']
+            ? (string)$cause['parent_id']
+            : 'root';
 
         if (isset($model[$parentId])) {
             $model[$parentId]['children'][] = $id;
@@ -72,9 +79,36 @@ try {
         }
     }
 
-    echo json_encode($model);
+    // 5. Recursive tree builder
+    function buildTree($model, $nodeId) {
+        $node = $model[$nodeId];
+        $children = [];
 
-} catch (Exception $e) {
+        foreach ($node['children'] as $childId) {
+            $children[] = buildTree($model, $childId);
+        }
+
+        return [
+            'id' => $node['id'],
+            'data' => $node['data'],
+            'children' => $children
+        ];
+    }
+
+    $tree = [
+        buildTree($model, 'root')
+    ];
+
+    // 6. Final response
+    echo json_encode([
+        'model' => $model,
+        'tree' => $tree
+    ]);
+
+} catch (Throwable $e) {
     http_response_code(500);
-    echo json_encode(["error" => "Failed to fetch cause tree", "message" => $e->getMessage()]);
+    echo json_encode([
+        "error" => "Failed to fetch cause tree",
+        "message" => $e->getMessage()
+    ]);
 }
