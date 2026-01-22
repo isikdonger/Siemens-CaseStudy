@@ -97,7 +97,7 @@ php -m | grep pdo_mysql
 ```
 
 3. Verify backend API is accessible:
-   - Open: `http://localhost/Siemens%20CaseStudy/backend/get_problems.php`
+   - Open: `http://localhost/Siemens-CaseStudy/backend/get_problems.php`
    - Should return: `[]` (empty array) or JSON data
 
 ### 3. Frontend Setup
@@ -115,7 +115,7 @@ npm install
 3. Configure API base URL (optional):
    - Create `.env` file in `frontend/` directory:
    ```
-   VITE_API_BASE_URL=http://localhost/Siemens%20CaseStudy/backend
+   VITE_API_BASE_URL=http://localhost/Siemens-CaseStudy/backend
    ```
    - Or modify `API_BASE_URL` in `frontend/src/App.jsx`
 
