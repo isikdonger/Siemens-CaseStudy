@@ -1,0 +1,121 @@
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
+
+// Register all Community features
+ModuleRegistry.registerModules([AllCommunityModule]);
+import { AgGridReact } from 'ag-grid-react';
+import {
+  IxButton,
+  IxModalContent,
+  IxModalFooter,
+  IxModalHeader,
+  Modal,
+  IxTypography,
+  IxInput,
+  showModal,
+  IxApplicationHeader,
+  IxContent,
+  IxContentHeader
+} from '@siemens/ix-react';
+
+// --- THE MODAL COMPONENT ---
+// This handles its own state and submits to your PHP
+function ProblemFormModal({ modalRef, onSaveSuccess }) {
+  const [title, setTitle] = useState('');
+  const [team, setTeam] = useState('');
+
+  const handleSubmit = async () => {
+    const newProblem = { title, team, state: 1 };
+
+    const response = await fetch('http://localhost/Siemens%20CaseStudy/backend/create_problem.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newProblem)
+    });
+
+    const result = await response.json();
+    if (result.status === "success") {
+      onSaveSuccess(); // Refresh the grid
+      modalRef.current?.close(); // Close modal
+    } else {
+      alert("Error: " + result.error);
+    }
+  };
+
+  return (
+      <Modal ref={modalRef}>
+        <IxModalHeader onCloseClick={() => modalRef.current?.dismiss()}>
+          Add New Problem
+        </IxModalHeader>
+        <IxModalContent>
+          <div style={{ padding: '1rem' }}>
+            <IxInput label="Problem Title">
+              <input
+                  type="text"
+                  value={title}
+                  onInput={(e) => setTitle(e.currentTarget.value)}
+                  placeholder="What is the issue?"
+              />
+            </IxInput>
+            <div style={{ marginTop: '1rem' }}>
+              <IxInput label="Assigned Team">
+                <input
+                    type="text"
+                    value={team}
+                    onInput={(e) => setTeam(e.currentTarget.value)}
+                    placeholder="e.g. IT, DevOps"
+                />
+              </IxInput>
+            </div>
+          </div>
+        </IxModalContent>
+        <IxModalFooter>
+          <IxButton variant="secondary" onClick={() => modalRef.current?.dismiss()}>
+            Cancel
+          </IxButton>
+          <IxButton onClick={handleSubmit}>Save Problem</IxButton>
+        </IxModalFooter>
+      </Modal>
+  );
+}
+
+// --- THE MAIN APP ---
+export default function App() {
+  const [rowData, setRowData] = useState([]);
+
+  const fetchList = () => {
+    fetch('http://localhost/Siemens%20CaseStudy/backend/get_problems.php')
+        .then(res => res.json())
+        .then(data => setRowData(data));
+  };
+
+  useEffect(() => { fetchList(); }, []);
+
+  // Use the documentation's "showModal" pattern
+  const openModal = async () => {
+    await showModal({
+      content: <ProblemFormModal onSaveSuccess={fetchList} />,
+    });
+  };
+
+  const columnDefs = useMemo(() => [
+    { field: 'problem_id', headerName: 'ID', width: 80 },
+    { field: 'title', headerName: 'Problem Title', flex: 1 },
+    { field: 'team', headerName: 'Team', width: 150 },
+    { field: 'state', headerName: 'Status', valueFormatter: p => p.value == 1 ? "Active" : "Closed" }
+  ], []);
+
+  return (
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <IxApplicationHeader name="Case Study Manager" />
+        <IxContent>
+          <IxContentHeader title="Problems" headerSubtitle="Bölüm A">
+            <IxButton onClick={openModal}>Add New Problem</IxButton>
+          </IxContentHeader>
+          <div className="ag-theme-alpine" style={{ height: '80%', width: '100%' }}>
+            <AgGridReact rowData={rowData} columnDefs={columnDefs} />
+          </div>
+        </IxContent>
+      </div>
+  );
+}

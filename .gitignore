@@ -1,0 +1,34 @@
+# --- OS Files ---
+.DS_Store
+Thumbs.db
+
+# --- Dependencies ---
+# Ignore the massive Node.js modules folder
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+
+# --- Backend / PHP ---
+# Ignore local database configurations or logs
+backend/logs/
+backend/temp/
+
+# --- IDEs / Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.project
+.settings/
+
+# --- AG Grid & Tools ---
+.npm
+.eslintcache
+
+# --- Build Logs ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
