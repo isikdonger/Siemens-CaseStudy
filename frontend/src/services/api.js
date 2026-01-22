@@ -28,4 +28,12 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     }).then(res => res.json()),
+
+    updateProblemState: async (problem_id, state) => {
+        const res = await fetch(`${BASE_URL}/update_problem_state.php`, {
+            method: 'POST',
+            body: JSON.stringify({ problem_id, state })
+        });
+        return res.json();
+    },
 };
