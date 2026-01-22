@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost/Siemens%20CaseStudy/backend';
+const BASE_URL = 'http://localhost/Siemens-CaseStudy/backend';
 
 export const api = {
     fetchProblems: () => fetch(`${BASE_URL}/get_problems.php`).then(res => res.json()),

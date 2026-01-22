@@ -1,63 +1,95 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { IxTypography, IxButton } from '@siemens/ix-react';
+import { api } from '../../services/api';
 
-export default function ControlSidebar({
-                                           selectedProblem,
-                                           selectedNodeId,
-                                           treeModel,
-                                           newWhy,
-                                           setNewWhy,
-                                           onAddWhy,
-                                           actionDescription,
-                                           setActionDescription,
-                                           onMarkRoot
-                                       }) {
+export default function ControlSidebar({ selectedProblem, selectedNodeId, treeModel, onRefreshTree, onUpdateProblem }) {
+    // Define the exact variable name used in your JSX
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    // Sticky logic: Initialize state from localStorage or default to empty
+    const [newWhy, setNewWhy] = useState(localStorage.getItem('sticky_why') || '');
+    const [actionDescription, setActionDescription] = useState(localStorage.getItem('sticky_action') || '');
+
+    // Save inputs to localStorage as the user types
+    useEffect(() => {
+        localStorage.setItem('sticky_why', newWhy);
+    }, [newWhy]);
+
+    useEffect(() => {
+        localStorage.setItem('sticky_action', actionDescription);
+    }, [actionDescription]);
+
     const isActive = selectedProblem?.state === 1;
 
-    if (!isActive) {
-        return (
-            <div style={{ flex: 1, background: '#1a1a1a', padding: '24px', border: '1px solid #333', borderRadius: '4px', textAlign: 'center' }}>
-                <IxTypography variant="h3" style={{ color: '#ff4444' }}>Locked</IxTypography>
-                <p style={{ color: '#888', marginTop: '15px' }}>The investigation is finalized. Re-open to modify.</p>
-            </div>
-        );
-    }
+    const handleAddWhy = async () => {
+        setIsProcessing(true); // Matches the variable name in your buttons
+        try {
+            await api.addCause({
+                problem_id: selectedProblem.problem_id,
+                parent_id: selectedNodeId === 'root' ? null : selectedNodeId,
+                description: newWhy.trim()
+            });
+            setNewWhy('');
+            localStorage.removeItem('sticky_why'); // Clear after success
+            onRefreshTree();
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleMarkRoot = async () => {
+        setIsProcessing(true);
+        try {
+            await api.markRootCause({
+                problem_id: selectedProblem.problem_id,
+                cause_id: selectedNodeId,
+                action: actionDescription.trim()
+            });
+            setActionDescription('');
+            localStorage.removeItem('sticky_action'); // Clear after success
+            onUpdateProblem(2);
+            onRefreshTree();
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    if (!isActive) return (
+        <div style={{ flex: 1, background: '#1a1a1a', padding: '24px', borderRadius: '4px', textAlign: 'center' }}>
+            <IxTypography variant="h3" style={{ color: '#ff4444' }}>Locked</IxTypography>
+            <p style={{ color: '#888' }}>Investigation is finalized.</p>
+        </div>
+    );
 
     return (
-        <div style={{ flex: 1, background: '#1a1a1a', padding: '24px', border: '1px solid #333', borderRadius: '4px' }}>
+        <div style={{ flex: 1, background: '#1a1a1a', padding: '24px', borderRadius: '4px' }}>
             <IxTypography variant="h3" style={{ color: '#00ccbb' }}>Add Analysis</IxTypography>
-
             <div style={{ margin: '15px 0', padding: '12px', background: '#222', borderLeft: '4px solid #00ccbb' }}>
-                <IxTypography variant="label-small">Targeting:</IxTypography>
-                <div style={{ fontWeight: 'bold', color: '#fff' }}>
-                    {selectedNodeId === 'root' ? selectedProblem?.title : treeModel[selectedNodeId]?.data?.name}
-                </div>
+                <small>Targeting: <b>{selectedNodeId === 'root' ? selectedProblem?.title : treeModel[selectedNodeId]?.data?.name}</b></small>
             </div>
 
             <textarea
-                style={{ width: '100%', height: '100px', background: '#000', border: '1px solid #444', color: '#fff', padding: '10px', outline: 'none' }}
+                name="new-why-input"
+                style={{ width: '100%', height: '80px', background: '#000', color: '#fff', padding: '10px' }}
                 value={newWhy}
                 onChange={e => setNewWhy(e.target.value)}
-                placeholder="Enter why this happened..."
             />
-            <IxButton
-                disabled={newWhy.trim().length < 3 || isProcessing}
-                onClick={onAddWhy}
-            >
-                Add "Why?"
+            {/* Using isProcessing exactly as your console error expected */}
+            <IxButton style={{ width: '100%', marginTop: '10px' }} onClick={handleAddWhy} disabled={isProcessing || !newWhy.trim()}>
+                {isProcessing ? 'Adding...' : 'Add "Why?"'}
             </IxButton>
 
             {selectedNodeId !== 'root' && (
                 <div style={{ marginTop: '40px', borderTop: '1px solid #333', paddingTop: '20px' }}>
                     <IxTypography variant="h4" style={{ color: '#ff4444' }}>Finalize Root Cause</IxTypography>
                     <textarea
-                        style={{ width: '100%', height: '100px', background: '#000', border: '1px solid #ff4444', color: '#fff', marginTop: '12px', padding: '10px', outline: 'none' }}
-                        placeholder="Kalıcı Çözüm..."
+                        name="action-input"
+                        style={{ width: '100%', height: '80px', background: '#000', color: '#fff', marginTop: '10px' }}
                         value={actionDescription}
                         onChange={e => setActionDescription(e.target.value)}
                     />
-                    <IxButton variant="primary" style={{ width: '100%', marginTop: '12px' }} onClick={onMarkRoot} disabled={!actionDescription.trim()}>
-                        Mark & Close
+                    <IxButton variant="primary" style={{ width: '100%', marginTop: '10px' }} onClick={handleMarkRoot} disabled={isProcessing || !actionDescription.trim()}>
+                        {isProcessing ? 'Processing...' : 'Mark & Close'}
                     </IxButton>
                 </div>
             )}

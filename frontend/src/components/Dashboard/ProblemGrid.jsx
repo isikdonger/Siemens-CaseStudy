@@ -26,21 +26,12 @@ export default function ProblemGrid({ rowData, onAnalyze, refreshList }) {
         {
             field: 'problem_id',
             headerName: 'ID',
-            width: 70,
-            sort: 'desc'
+            width: 80,
+            sort: 'desc', // Consistency: Enforces descending order on load
+            sortIndex: 0
         },
-        {
-            field: 'title',
-            headerName: 'Problem Name',
-            flex: 2,
-            filter: true
-        },
-        {
-            field: 'team',
-            headerName: 'Assigned Team',
-            flex: 1,
-            filter: true
-        },
+        { field: 'title', headerName: 'Problem Name', flex: 1, sortable: true },
+        { field: 'team', headerName: 'Team', width: 150, sortable: true },
         {
             field: 'date',
             headerName: 'Reported Date',
@@ -61,8 +52,8 @@ export default function ProblemGrid({ rowData, onAnalyze, refreshList }) {
             width: 110,
             cellRenderer: (p) => (
                 <span style={{ color: p.value === 1 ? '#00ccbb' : '#ff4444', fontWeight: 'bold' }}>
-          {p.value === 1 ? '● Open' : '● Closed'}
-        </span>
+                    {p.value === 1 ? '● Open' : '● Closed'}
+                </span>
             )
         },
         {
@@ -87,11 +78,19 @@ export default function ProblemGrid({ rowData, onAnalyze, refreshList }) {
             </IxContentHeader>
             <div style={{ flex: 1, padding: '20px' }}>
                 <AgGridReact
-                    rowData={rowData}
-                    columnDefs={columnDefs}
                     theme={siemensTheme}
+                    rowData={rowData || []}
+                    columnDefs={columnDefs}
+
+                    // Pagination Settings (Fixed to avoid console warnings)
                     pagination={true}
                     paginationPageSize={10}
+                    paginationPageSizeSelector={[10, 20, 50, 100]}
+
+                    // Layout settings
+                    domLayout='autoHeight'
+                    onGridReady={(params) => params.api.sizeColumnsToFit()}
+                    overlayNoRowsTemplate="<span>No problems found.</span>"
                 />
             </div>
         </div>

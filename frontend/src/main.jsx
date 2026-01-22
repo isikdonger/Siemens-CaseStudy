@@ -1,19 +1,13 @@
-import React, { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.jsx';
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+ModuleRegistry.registerModules([AllCommunityModule]);
 
-// Siemens iX setup
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
 import '@siemens/ix/dist/siemens-ix/siemens-ix.css';
-import { defineCustomElements } from '@siemens/ix/loader';
-import {IxApplicationContext} from "@siemens/ix-react";
 
-// This function "wakes up" the buttons and modals
-defineCustomElements();
-
-createRoot(document.getElementById('root')).render(
-    <IxApplicationContext>
-        <StrictMode>
-            <App />
-        </StrictMode>
-    </IxApplicationContext>
+ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>
 );
